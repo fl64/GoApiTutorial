@@ -37,14 +37,14 @@ func (a *App) Run(addr string) {
 }
 
 func (a *App) initializeRoutes() {
-	a.Router.HandleFunc("/users", a.getUsers).Methods("GET")
-	a.Router.HandleFunc("/user", a.createUser).Methods("POST")
-	a.Router.HandleFunc("/user/{id:[0-9]+}", a.getUser).Methods("GET")
-	a.Router.HandleFunc("/user/{id:[0-9]+}", a.updateUser).Methods("PUT")
-	a.Router.HandleFunc("/user/{id:[0-9]+}", a.deleteUser).Methods("DELETE")
+	a.Router.HandleFunc("/licenses", a.getLicenses).Methods("GET")
+	a.Router.HandleFunc("/license", a.createLicense).Methods("POST")
+	a.Router.HandleFunc("/license/{id:[0-9]+}", a.getLicense).Methods("GET")
+	a.Router.HandleFunc("/license/{id:[0-9]+}", a.updateLicense).Methods("PUT")
+	a.Router.HandleFunc("/license/{id:[0-9]+}", a.deleteLicense).Methods("DELETE")
 }
 
-func (a *App) getUsers(w http.ResponseWriter, r *http.Request) {
+func (a *App) getLicenses(w http.ResponseWriter, r *http.Request) {
 	count, _ := strconv.Atoi(r.FormValue("count"))
 	start, _ := strconv.Atoi(r.FormValue("start"))
 
@@ -55,7 +55,7 @@ func (a *App) getUsers(w http.ResponseWriter, r *http.Request) {
 		start = 0
 	}
 
-	products, err := getUsers(a.DB, start, count)
+	products, err := getLicenses(a.DB, start, count)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -64,80 +64,80 @@ func (a *App) getUsers(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, products)
 }
 
-func (a *App) createUser(w http.ResponseWriter, r *http.Request) {
-	var u user
+func (a *App) createLicense(w http.ResponseWriter, r *http.Request) {
+	var lic license
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&u); err != nil {
+	if err := decoder.Decode(&lic); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 	defer r.Body.Close()
 
-	if err := u.createUser(a.DB); err != nil {
+	if err := lic.createLicense(a.DB); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusCreated, u)
+	respondWithJSON(w, http.StatusCreated, lic)
 }
 
-func (a *App) getUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) getLicense(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid License ID")
 		return
 	}
 
-	u := user{ID: id}
-	if err := u.getUser(a.DB); err != nil {
+	lic := license{ID: id}
+	if err := lic.getLicense(a.DB); err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "User not found")
+			respondWithError(w, http.StatusNotFound, "License not found")
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, u)
+	respondWithJSON(w, http.StatusOK, lic)
 }
 
-func (a *App) updateUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) updateLicense(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid user ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid License ID")
 		return
 	}
 
-	var u user
+	var lic license
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&u); err != nil {
+	if err := decoder.Decode(&lic); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid resquest payload")
 		return
 	}
 	defer r.Body.Close()
-	u.ID = id
+	lic.ID = id
 
-	if err := u.updateUser(a.DB); err != nil {
+	if err := lic.updateLicense(a.DB); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, u)
+	respondWithJSON(w, http.StatusOK, lic)
 }
 
-func (a *App) deleteUser(w http.ResponseWriter, r *http.Request) {
+func (a *App) deleteLicense(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid User ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid License ID")
 		return
 	}
 
-	u := user{ID: id}
-	if err := u.deleteUser(a.DB); err != nil {
+	lic := license{ID: id}
+	if err := lic.deleteLicense(a.DB); err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

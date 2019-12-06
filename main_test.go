@@ -18,14 +18,10 @@ var a App
 
 func TestMain(m *testing.M) {
 	a = App{}
-	a.Initialize("root", "password", "rest_api_example")
-
+	a.Initialize("root", "password", "gm_licenses")
 	ensureTableExists()
-
 	code := m.Run()
-
 	clearTable()
-
 	os.Exit(code)
 }
 
@@ -36,22 +32,24 @@ func ensureTableExists() {
 }
 
 func clearTable() {
-	a.DB.Exec("DELETE FROM users")
-	a.DB.Exec("ALTER TABLE users AUTO_INCREMENT = 1")
+	a.DB.Exec("DELETE FROM licenses")
+	a.DB.Exec("ALTER TABLE licenses AUTO_INCREMENT = 1")
 }
 
 const tableCreationQuery = `
-CREATE TABLE IF NOT EXISTS users
+ CREATE TABLE IF NOT EXISTS licenses
 (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
-    age INT NOT NULL
+    edition VARCHAR(50) NOT NULL, 
+    devices INT NOT NULL,
+    issued_to VARCHAR(50) NOT NULL,
+    issued_on VARCHAR(50) NOT NULL
 )`
 
 func TestEmptyTable(t *testing.T) {
 	clearTable()
 
-	req, _ := http.NewRequest("GET", "/users", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/licenses", nil)
 	response := executeRequest(req)
 
 	checkResponseCode(t, http.StatusOK, response.Code)
@@ -74,27 +72,27 @@ func checkResponseCode(t *testing.T, expected, actual int) {
 	}
 }
 
-func TestGetNonExistentUser(t *testing.T) {
+func TestGetNonExistentLicense(t *testing.T) {
 	clearTable()
 
-	req, _ := http.NewRequest("GET", "/user/45", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/license/1", nil)
 	response := executeRequest(req)
 
 	checkResponseCode(t, http.StatusNotFound, response.Code)
 
 	var m map[string]string
 	json.Unmarshal(response.Body.Bytes(), &m)
-	if m["error"] != "User not found" {
-		t.Errorf("Expected the 'error' key of the response to be set to 'User not found'. Got '%s'", m["error"])
+	if m["error"] != "License not found" {
+		t.Errorf("Expected the 'error' key of the response to be set to 'License not found'. Got '%s'", m["error"])
 	}
 }
 
-func TestCreateUser(t *testing.T) {
+func TestCreateLicense(t *testing.T) {
 	clearTable()
 
-	payload := []byte(`{"name":"test user","age":30}`)
+	payload := []byte(`{"edition":"Enterprise","devices":100,"issued_on":"2019-12-06","issued_to":"GMTEST"}`)
 
-	req, _ := http.NewRequest("POST", "/user", bytes.NewBuffer(payload))
+	req, _ := http.NewRequest("POST", "/api/v1/license", bytes.NewBuffer(payload))
 	response := executeRequest(req)
 
 	checkResponseCode(t, http.StatusCreated, response.Code)
@@ -102,12 +100,12 @@ func TestCreateUser(t *testing.T) {
 	var m map[string]interface{}
 	json.Unmarshal(response.Body.Bytes(), &m)
 
-	if m["name"] != "test user" {
-		t.Errorf("Expected user name to be 'test user'. Got '%v'", m["name"])
+	if m["edition"] != "Enterprise" {
+		t.Errorf("Expected license edition to be 'Enterprise'. Got '%v'", m["name"])
 	}
 
-	if m["age"] != 30.0 {
-		t.Errorf("Expected user age to be '30'. Got '%v'", m["age"])
+	if m["issued_to"] != "GMTEST" {
+		t.Errorf("Expected license devices to be 'GMTEST'. Got '%v'", m["devices"])
 	}
 
 	// the id is compared to 1.0 because JSON unmarshaling converts numbers to
@@ -117,39 +115,39 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
-func addUsers(count int) {
+func addLicenses(count int) {
 	if count < 1 {
 		count = 1
 	}
 
 	for i := 0; i < count; i++ {
-    statement := fmt.Sprintf("INSERT INTO users(name, age) VALUES('%s', %d)", ("User " + strconv.Itoa(i+1)), ((i+1) * 10))
+    statement := fmt.Sprintf("INSERT INTO licenses(edition,devices,issued_on,issued_to) VALUES('%s', %d, '%s','%s')", "Enterprise", ((i+1) * 10), "2019-01-01", "License " + strconv.Itoa(i+1) )
 		a.DB.Exec(statement)
 	}
 }
 
-func TestGetUser(t *testing.T) {
+func TestGetLicense(t *testing.T) {
 	clearTable()
-	addUsers(1)
+	addLicenses(1)
 
-	req, _ := http.NewRequest("GET", "/user/1", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/license/1", nil)
 	response := executeRequest(req)
 
 	checkResponseCode(t, http.StatusOK, response.Code)
 }
 
-func TestUpdateUser(t *testing.T) {
+func TestUpdateLicense(t *testing.T) {
 	clearTable()
-	addUsers(1)
+	addLicenses(1)
 
-	req, _ := http.NewRequest("GET", "/user/1", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/license/1", nil)
 	response := executeRequest(req)
-	var originalUser map[string]interface{}
-	json.Unmarshal(response.Body.Bytes(), &originalUser)
+	var originalLicense map[string]interface{}
+	json.Unmarshal(response.Body.Bytes(), &originalLicense)
 
-	payload := []byte(`{"name":"test user - updated name","age":21}`)
+	payload := []byte(`{"edition":"Enterprise","devices":88,"issued_on":"2019-12-06","issued_to":"GMTEST1"}`)
 
-	req, _ = http.NewRequest("PUT", "/user/1", bytes.NewBuffer(payload))
+	req, _ = http.NewRequest("PUT", "/api/v1/license/1", bytes.NewBuffer(payload))
 	response = executeRequest(req)
 
 	checkResponseCode(t, http.StatusOK, response.Code)
@@ -157,33 +155,33 @@ func TestUpdateUser(t *testing.T) {
 	var m map[string]interface{}
 	json.Unmarshal(response.Body.Bytes(), &m)
 
-	if m["id"] != originalUser["id"] {
-		t.Errorf("Expected the id to remain the same (%v). Got %v", originalUser["id"], m["id"])
+	if m["id"] != originalLicense["id"] {
+		t.Errorf("Expected the id to remain the same (%v). Got %v", originalLicense["id"], m["id"])
 	}
 
-	if m["name"] == originalUser["name"] {
-		t.Errorf("Expected the name to change from '%v' to '%v'. Got '%v'", originalUser["name"], m["name"], m["name"])
+	if m["devices"] == originalLicense["devices"] {
+		t.Errorf("Expected the name to change from '%v' to '%v'. Got '%v'", originalLicense["devices"], m["devices"], m["devices"])
 	}
 
-	if m["age"] == originalUser["age"] {
-		t.Errorf("Expected the age to change from '%v' to '%v'. Got '%v'", originalUser["age"], m["age"], m["age"])
+	if m["issued_to"] == originalLicense["issued_to"] {
+		t.Errorf("Expected the age to change from '%v' to '%v'. Got '%v'", originalLicense["issued_to"], m["issued_to"], m["issued_to"])
 	}
 }
 
-func TestDeleteUser(t *testing.T) {
+func TestDeleteLicense(t *testing.T) {
 	clearTable()
-	addUsers(1)
+	addLicenses(1)
 
-	req, _ := http.NewRequest("GET", "/user/1", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/license/1", nil)
 	response := executeRequest(req)
 	checkResponseCode(t, http.StatusOK, response.Code)
 
-	req, _ = http.NewRequest("DELETE", "/user/1", nil)
+	req, _ = http.NewRequest("DELETE", "/api/v1/license/1", nil)
 	response = executeRequest(req)
 
 	checkResponseCode(t, http.StatusOK, response.Code)
 
-	req, _ = http.NewRequest("GET", "/user/1", nil)
+	req, _ = http.NewRequest("GET", "/api/v1/license/1", nil)
 	response = executeRequest(req)
 	checkResponseCode(t, http.StatusNotFound, response.Code)
 }

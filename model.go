@@ -3,42 +3,48 @@
 package main
 
 import (
-  "fmt"
 	"database/sql"
+	"fmt"
 )
 
-type user struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Age  int    `json:"age"`
+type license struct {
+	ID        int    `json:"id"`
+	Edition   string `json:"edition"`
+	Devices   int    `json:"devices"`
+	IssuedTo  string `json:"issued_to"`
+	IssusedOn string `json:"issued_on"`
 }
 
-func (u *user) getUser(db *sql.DB) error {
-	statement := fmt.Sprintf("SELECT name, age FROM users WHERE id=%d", u.ID)
-	return db.QueryRow(statement).Scan(&u.Name, &u.Age)
+func (lic *license) getLicense(db *sql.DB) error {
+	s := "SELECT edition, devices, issued_to, issued_on FROM licenses WHERE id=%d"
+	statement := fmt.Sprintf(s, lic.ID)
+	return db.QueryRow(statement).Scan(&lic.Edition, &lic.Devices, &lic.IssuedTo, &lic.IssusedOn)
 }
 
-func (u *user) updateUser(db *sql.DB) error {
-	statement := fmt.Sprintf("UPDATE users SET name='%s', age=%d WHERE id=%d", u.Name, u.Age, u.ID)
+func (lic *license) updateLicense(db *sql.DB) error {
+	s := "UPDATE licenses SET edition='%s', devices=%d, issued_to='%s', issued_on='%s' WHERE id=%d"
+	statement := fmt.Sprintf(s, lic.Edition, lic.Devices, lic.IssuedTo, lic.IssusedOn, lic.ID)
 	_, err := db.Exec(statement)
 	return err
 }
 
-func (u *user) deleteUser(db *sql.DB) error {
-	statement := fmt.Sprintf("DELETE FROM users WHERE id=%d", u.ID)
+func (lic *license) deleteLicense(db *sql.DB) error {
+	s := "DELETE FROM licenses WHERE id=%d"
+	statement := fmt.Sprintf(s, lic.ID)
 	_, err := db.Exec(statement)
 	return err
 }
 
-func (u *user) createUser(db *sql.DB) error {
-	statement := fmt.Sprintf("INSERT INTO users(name, age) VALUES('%s', %d)", u.Name, u.Age)
+func (lic *license) createLicense(db *sql.DB) error {
+	s := "INSERT INTO licenses(edition, devices, issued_to, issued_on) VALUES('%s', %d, '%s', '%s')"
+	statement := fmt.Sprintf(s, lic.Edition, lic.Devices, lic.IssuedTo, lic.IssusedOn)
 	_, err := db.Exec(statement)
 
 	if err != nil {
 		return err
 	}
 
-	err = db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&u.ID)
+	err = db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&lic.ID)
 
 	if err != nil {
 		return err
@@ -47,8 +53,9 @@ func (u *user) createUser(db *sql.DB) error {
 	return nil
 }
 
-func getUsers(db *sql.DB, start, count int) ([]user, error) {
-	statement := fmt.Sprintf("SELECT id, name, age FROM users LIMIT %d OFFSET %d", count, start)
+func getLicenses(db *sql.DB, start, count int) ([]license, error) {
+	s := "SELECT id, edition, devices, issued_to, issued_on FROM licenses LIMIT %d OFFSET %d"
+	statement := fmt.Sprintf(s, count, start)
 	rows, err := db.Query(statement)
 
 	if err != nil {
@@ -57,15 +64,15 @@ func getUsers(db *sql.DB, start, count int) ([]user, error) {
 
 	defer rows.Close()
 
-	users := []user{}
+	licenses := []license{}
 
 	for rows.Next() {
-		var u user
-		if err := rows.Scan(&u.ID, &u.Name, &u.Age); err != nil {
+		var lic license
+		if err := rows.Scan(&lic.ID, &lic.Edition, &lic.Devices, &lic.IssuedTo, &lic.IssusedOn); err != nil {
 			return nil, err
 		}
-		users = append(users, u)
+		licenses = append(licenses, lic)
 	}
 
-	return users, nil
+	return licenses, nil
 }
