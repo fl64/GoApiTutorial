@@ -6,12 +6,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
-
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/gorilla/mux"
 )
 
 type App struct {
@@ -20,15 +19,16 @@ type App struct {
 }
 
 func (a *App) Initialize(user, password, dbname string) {
-	connectionString := fmt.Sprintf("%s:%s@/%s", user, password, dbname)
+	connectionString := fmt.Sprintf("%s:%s@tcp(172.16.10.64:3306)/%s", user, password, dbname)
 
 	var err error
 	a.DB, err = sql.Open("mysql", connectionString)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	a.Router = mux.NewRouter()
+	var router = mux.NewRouter()
+	var api = router.PathPrefix("/api").Subrouter()
+	a.Router = api.PathPrefix("/v1").Subrouter()
 	a.initializeRoutes()
 }
 
